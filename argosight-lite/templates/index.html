@@ -1,0 +1,171 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Argosight Lite</title>
+<style>
+:root{--bg:#f3f6f1;--card:#fff;--ink:#1d2b1f;--mut:#667a6b;--acc:#2e7d32;--bd:#dce4d8;--blue:#1976d2;--amb:#f9a825;--red:#c62828;--soft:#eef4ec}
+@media(prefers-color-scheme:dark){:root{--bg:#101712;--card:#1a251d;--ink:#e6efe7;--mut:#94aa9a;--acc:#66bb6a;--bd:#2a3a2d;--soft:#223026;--blue:#64b5f6}}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;align-items:center;gap:24px;padding:0 24px;background:var(--acc);color:#fff;flex-wrap:wrap}
+header h1{margin:0;font-size:18px;padding:14px 0}nav{display:flex;gap:2px}
+nav button{border:0;padding:16px 14px;background:transparent;color:#fff;opacity:.75;cursor:pointer;font:inherit;border-bottom:3px solid transparent}
+nav button.on{opacity:1;border-color:#fff;font-weight:600}
+main{padding:20px 24px;max-width:1300px;margin:auto}.hide{display:none!important}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.stat b{display:block;font-size:28px;color:var(--acc)}.mut{color:var(--mut);font-size:13px}
+h2{margin:0 0 10px;font-size:16px}h3{margin:14px 0 6px;font-size:14px}
+input,select,textarea{padding:8px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+button.go{background:var(--acc);color:#fff;border:0;padding:9px 18px;border-radius:6px;cursor:pointer;font:inherit}
+button.go:disabled{opacity:.5}button.sec{background:var(--soft);color:var(--ink);border:1px solid var(--bd);padding:8px 14px;border-radius:6px;cursor:pointer;font:inherit}
+.split{display:grid;grid-template-columns:320px 1fr;gap:16px;align-items:start}@media(max-width:850px){.split{grid-template-columns:1fr}}
+.list{max-height:72vh;overflow:auto;margin-top:8px}.item{padding:9px 10px;border-radius:7px;cursor:pointer;border:1px solid transparent}
+.item:hover{background:var(--soft)}.item.on{background:var(--soft);border-color:var(--acc)}.item b{display:block;font-size:13px}
+.tag{display:inline-block;font-size:11px;background:var(--soft);border:1px solid var(--bd);padding:1px 8px;border-radius:99px;color:var(--mut);margin:0 4px 4px 0}
+svg text{font:12px system-ui;fill:var(--ink)}.dag{overflow:auto;border:1px solid var(--bd);border-radius:8px;background:var(--bg)}
+.node rect{fill:var(--card);stroke:var(--bd);stroke-width:1.5}.node.src rect{stroke:var(--blue)}.node.snk rect{stroke:var(--amb)}
+.node.run rect{stroke:var(--amb);stroke-width:3}.node.ok rect{stroke:var(--acc);fill:var(--soft);stroke-width:2.5}.node.wf rect{stroke-dasharray:5 3}
+.node{cursor:pointer}.edge{fill:none;stroke:var(--mut);stroke-width:1.4;opacity:.6}
+table{border-collapse:collapse;width:100%;font-size:13px}td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--bd);vertical-align:top}th{color:var(--mut);font-weight:600}
+.log{background:#0e1510;color:#b8e6bd;font:12px/1.5 ui-monospace,monospace;padding:12px;border-radius:8px;height:200px;overflow:auto;white-space:pre-wrap}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:10px 0}.row label{display:flex;flex-direction:column;font-size:12px;color:var(--mut);gap:3px}
+.res{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-top:12px}.res div{background:var(--soft);border-radius:8px;padding:10px}.res b{display:block;font-size:19px;color:var(--acc)}
+canvas{width:100%;border:1px solid var(--bd);border-radius:8px;background:var(--bg)}textarea{width:100%;height:130px;font-family:monospace}
+.arch{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch}.arch>div{flex:1;min-width:170px;background:var(--soft);border:1px solid var(--bd);border-radius:8px;padding:12px}
+.arch .ar{flex:0;align-self:center;background:none;border:0;font-size:22px;color:var(--mut);min-width:0;padding:0}
+.crumb a{color:var(--acc);cursor:pointer}.pill{padding:2px 8px;border-radius:99px;font-size:11px;color:#fff}
+</style></head><body>
+<header><h1>🌱 Argosight Lite</h1><nav id="tabs">
+<button data-t="ov" class="on">Overview</button><button data-t="wf">Workflows</button><button data-t="op">Operators</button><button data-t="tl">Calculators</button></nav></header>
+<main>
+
+<section id="ov">
+ <div class="stats" id="stats"></div>
+ <div class="card" style="margin-bottom:16px"><h2>How Argosight works</h2>
+  <div class="arch">
+   <div><b>1. You ask</b><div class="mut">Pick a workflow, give an area (geometry) and a time range via the Python client or REST API.</div></div><div class="ar">→</div>
+   <div><b>2. Server plans</b><div class="mut">The REST server reads the workflow graph (tasks + edges) and queues ready tasks.</div></div><div class="ar">→</div>
+   <div><b>3. Workers run ops</b><div class="mut">Each task runs an <i>operator</i> in a Docker worker: download Sentinel/NAIP/weather, mask clouds, compute indices, run ML.</div></div><div class="ar">→</div>
+   <div><b>4. Results</b><div class="mut">Outputs (rasters, timeseries, geometries) are cached on disk and returned to the client.</div></div>
+  </div></div>
+ <div class="card"><h2>Workflows by area</h2><div id="cats"></div>
+  <div class="mut" style="margin-top:10px">This UI is a lightweight explorer: it reads the real workflow and operator definitions from the repo and <b>simulates</b> runs. No data is downloaded and no cluster is needed.</div></div>
+</section>
+
+<section id="wf" class="hide"><div class="split">
+ <div class="card"><input id="q" placeholder="Search 90 workflows…" style="width:100%"><div class="mut" id="cnt" style="margin-top:6px"></div><div class="list" id="wlist"></div></div>
+ <div id="wdetail"><div class="card mut">Select a workflow to see its graph.</div></div>
+</div></section>
+
+<section id="op" class="hide"><div class="split">
+ <div class="card"><input id="oq" placeholder="Search operators…" style="width:100%"><div class="mut" id="ocnt" style="margin-top:6px"></div><div class="list" id="olist"></div></div>
+ <div id="odetail"><div class="card mut">Select an operator.</div></div>
+</div></section>
+
+<section id="tl" class="hide"><div class="split" style="grid-template-columns:1fr 1fr">
+ <div class="card"><h2>Vegetation indices</h2><div class="mut">Surface reflectance (0–1) per band.</div>
+  <div class="row" id="bands"></div><button class="go" onclick="calcIx()">Calculate</button><div class="res" id="ixres"></div></div>
+ <div class="card"><h2>Season analysis</h2><div class="mut">One <code>date,ndvi</code> per line → emergence / peak / harvest.</div>
+  <textarea id="pts"></textarea><div class="row"><button class="go" onclick="calcSs()">Analyze</button><button class="sec" onclick="demo()">New demo data</button></div>
+  <canvas id="cv" width="700" height="220"></canvas><div class="res" id="ssres"></div></div>
+</div></section>
+</main>
+
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api=(u,b)=>fetch(u,b&&{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(r=>r.json());
+function tab(t){document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x.dataset.t===t));
+ ['ov','wf','op','tl'].forEach(x=>$('#'+x).classList.toggle('hide',x!==t));}
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>tab(b.dataset.t));
+let W=[],O=[],cur=null,timer=null;
+
+api('/api/overview').then(o=>{
+ $('#stats').innerHTML=[['Workflows',o.workflows],['Operators',o.ops],['Tasks defined',o.tasks],['Areas',Object.keys(o.categories).length]]
+  .map(([a,b])=>`<div class="card stat"><b>${b}</b>${a}</div>`).join('');
+ $('#cats').innerHTML=Object.entries(o.categories).map(([k,v])=>`<span class="tag" style="font-size:13px;padding:4px 12px;cursor:pointer" onclick="$('#q').value='${k}';tab('wf');renderW()">${k} · ${v}</span>`).join('');});
+api('/api/workflows').then(d=>{W=d;renderW()});api('/api/ops').then(d=>{O=d;renderO()});
+
+function renderW(){const q=$('#q').value.toLowerCase(),f=W.filter(w=>(w.id+w.short+w.long).toLowerCase().includes(q));
+ $('#cnt').textContent=f.length+' workflows';
+ $('#wlist').innerHTML=f.map(w=>`<div class="item ${cur&&cur.id===w.id?'on':''}" onclick="openW('${w.id}')"><b>${esc(w.name)}</b><span class="mut">${esc(w.category)} · ${w.n_tasks} tasks</span></div>`).join('');}
+$('#q').oninput=renderW;
+function renderO(){const q=$('#oq').value.toLowerCase(),f=O.filter(o=>(o.name+o.short).toLowerCase().includes(q));
+ $('#ocnt').textContent=f.length+' operators';
+ $('#olist').innerHTML=f.map(o=>`<div class="item" onclick="openO('${o.name}')"><b>${esc(o.name)}</b><span class="mut">${esc(o.short.slice(0,70))}</span></div>`).join('');}
+$('#oq').oninput=renderO;
+
+function openO(n){const o=O.find(x=>x.name===n);tab('op');
+ const kv=(m)=>Object.keys(m).length?`<table>${Object.entries(m).map(([k,v])=>`<tr><td><b>${esc(k)}</b></td><td>${esc(typeof v==='object'?JSON.stringify(v):v)}</td></tr>`).join('')}</table>`:'<div class="mut">none</div>';
+ $('#odetail').innerHTML=`<div class="card"><h2>${esc(o.name)}</h2><div>${esc(o.long||o.short)}</div>
+ <h3>Inputs</h3>${kv(o.inputs)}<h3>Output</h3>${kv(o.output)}<h3>Default parameters</h3>${kv(o.parameters)}</div>`;}
+
+async function openW(id,fromTab=true){clearInterval(timer);cur=await api('/api/workflow?id='+encodeURIComponent(id));
+ if(fromTab)tab('wf');renderW();drawW();}
+
+function layout(w){ // layered layout: sources | task levels | sinks
+ const nodes={},cols=[[],...w.levels.map(l=>l),[]];
+ Object.keys(w.sources).forEach(s=>cols[0].push('@in:'+s));Object.keys(w.sinks).forEach(s=>cols[cols.length-1].push('@out:'+s));
+ const NW=190,NH=46,GX=70,GY=18;let maxn=Math.max(...cols.map(c=>c.length));
+ cols.forEach((c,ci)=>c.forEach((id,ri)=>{nodes[id]={id,x:20+ci*(NW+GX),y:20+ri*(NH+GY)+(maxn-c.length)*(NH+GY)/2,w:NW,h:NH}}));
+ return {nodes,W:20+cols.length*(NW+GX),H:40+maxn*(NH+GY)};}
+function drawW(state={}){const w=cur,L=layout(w),T=Object.fromEntries(w.tasks.map(t=>[t.id,t]));
+ const edge=e=>{const a=L.nodes[e.from.startsWith('@')?e.from:e.from.split('.')[0]],b=L.nodes[e.to.startsWith('@')?e.to:e.to.split('.')[0]];
+  if(!a||!b)return'';const x1=a.x+a.w,y1=a.y+a.h/2,x2=b.x,y2=b.y+b.h/2,m=(x1+x2)/2;
+  return`<path class="edge" d="M${x1},${y1} C${m},${y1} ${m},${y2} ${x2},${y2}" marker-end="url(#ar)"/>`};
+ const node=n=>{const id=n.id,src=id.startsWith('@in:'),snk=id.startsWith('@out:'),t=T[id];
+  const label=src||snk?id.slice(id.indexOf(':')+1):id,sub=src?'input':snk?'output':(t.ref||'').split('/').pop();
+  return`<g class="node ${src?'src':snk?'snk':t.kind==='workflow'?'wf':''} ${state[id]||''}" transform="translate(${n.x},${n.y})" data-id="${esc(id)}" ${t&&t.kind==='workflow'?`ondblclick="openW('${esc(t.ref)}',false)"`:''} onclick="pick('${esc(id)}')">
+  <rect width="${n.w}" height="${n.h}" rx="8"/><text x="12" y="19" font-weight="600">${esc(label.slice(0,26))}</text><text x="12" y="35" style="fill:var(--mut)">${esc(sub.slice(0,28))}</text></g>`};
+ const par=Object.entries(w.parameters);
+ $('#wdetail').innerHTML=`<div class="card"><div class="crumb mut">${esc(w.category)}</div><h2 style="font-size:20px">${esc(w.name)}</h2>
+ <div>${esc(w.long||w.short)}</div>
+ <div class="row"><button class="go" id="runb" onclick="simulate()">▶ Simulate run</button>
+  <span class="mut">Dashed boxes are nested workflows (double-click to open). Click any box for details.</span></div>
+ <div class="dag"><svg width="${L.W}" height="${L.H}"><defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="var(--mut)"/></marker></defs>
+ ${w.edges.map(edge).join('')}${Object.values(L.nodes).map(node).join('')}</svg></div>
+ <div id="pick" class="card" style="margin-top:12px;background:var(--soft)"><span class="mut">Click a node for details.</span></div>
+ <div id="runpanel"></div>
+ <h3>Inputs</h3>${tbl(w.sources)}<h3>Outputs</h3>${tbl(w.sinks)}${par.length?'<h3>Parameters</h3>'+tbl(w.parameters):''}</div>`;}
+const tbl=m=>Object.keys(m).length?`<table>${Object.entries(m).map(([k,v])=>`<tr><td style="width:180px"><b>${esc(k)}</b></td><td>${esc(v)||'<span class="mut">–</span>'}</td></tr>`).join('')}</table>`:'<div class="mut">none</div>';
+function pick(id){const t=cur.tasks.find(x=>x.id===id);let h;
+ if(!t){const k=id.slice(id.indexOf(':')+1),m=id.startsWith('@in:')?cur.sources:cur.sinks;h=`<b>${id.startsWith('@in:')?'Input':'Output'}: ${esc(k)}</b><div>${esc(m[k])}</div>`;}
+ else{h=`<b>${esc(t.id)}</b> <span class="tag">${t.kind}</span> <span class="tag">${esc(t.ref)}</span><div>${esc(t.desc)||'<span class="mut">no description</span>'}</div>`;
+  if(Object.keys(t.parameters).length)h+='<div class="mut" style="margin-top:6px">Parameters overridden here:</div>'+tbl(t.parameters);
+  h+=t.kind==='op'?` <a class="crumb" style="color:var(--acc);cursor:pointer" onclick="openO('${esc(t.ref)}')">View operator →</a>`:` <a style="color:var(--acc);cursor:pointer" onclick="openW('${esc(t.ref)}',false)">Open workflow →</a>`;}
+ $('#pick').innerHTML=h;}
+
+// ---- simulated run ----
+function simulate(){clearInterval(timer);const w=cur,st={},order=w.levels.flat();
+ w.edges.forEach(()=>{});Object.keys(w.sources).forEach(s=>st['@in:'+s]='ok');
+ $('#runb').disabled=true;
+ $('#runpanel').innerHTML=`<h3>Run log <span class="mut">(simulated — no data is downloaded)</span></h3><div class="log" id="log"></div><div id="outv"></div>`;
+ const log=m=>{const l=$('#log');l.textContent+=new Date().toLocaleTimeString()+'  '+m+'\n';l.scrollTop=1e9};
+ log(`Submitted workflow "${w.name}" · ${order.length} tasks`);log('Server: validating graph, scheduling ready tasks…');
+ let li=0,step=0,levels=w.levels;
+ timer=setInterval(()=>{ // each tick: finish previous level, start next
+  if(step%2===0){ if(li>=levels.length){clearInterval(timer);Object.keys(w.sinks).forEach(s=>st['@out:'+s]='ok');drawW(st);log('Run finished ✔');out();$('#runb').disabled=false;return;}
+   levels[li].forEach(id=>{st[id]='run';const t=w.tasks.find(x=>x.id===id);log(`Worker: started ${id} (${t.kind} ${t.ref})`)});}
+  else{levels[li].forEach(id=>{st[id]='ok';log(`Worker: ${id} done`)});li++;}
+  step++;drawW(st);$('#log').textContent;const rp=$('#log');},700);}
+function out(){const w=cur,sink=Object.keys(w.sinks)[0]||'output',txt=(sink+w.name).toLowerCase();
+ const el=$('#outv');
+ if(/time|series|stat|summary|ndvi/.test(txt)){el.innerHTML=`<h3>Sample output: ${esc(sink)} <span class="mut">(synthetic)</span></h3><canvas id="oc" width="800" height="200"></canvas>`;
+  const v=Array.from({length:20},(_, i)=>.2+.6*Math.exp(-Math.pow((i-10)/4,2))+(Math.random()-.5)*.04);line($('#oc'),v);}
+ else if(/raster|map|image|class|segment|mask/.test(txt)){el.innerHTML=`<h3>Sample output: ${esc(sink)} <span class="mut">(synthetic raster)</span></h3><canvas id="oc" width="400" height="220"></canvas>`;
+  const c=$('#oc'),x=c.getContext('2d');for(let i=0;i<40;i++)for(let j=0;j<22;j++){const n=(Math.sin(i/5)+Math.cos(j/4)+Math.random()*.6+2)/4;x.fillStyle=`hsl(${40+n*90},55%,${30+n*25}%)`;x.fillRect(i*10,j*10,10,10)}}
+ else el.innerHTML=`<h3>Sample output: ${esc(sink)}</h3><div class="mut">Output type depends on live data; shown in a real run.</div>`;}
+function line(c,v,marks=[]){const x=c.getContext('2d'),mx=Math.max(...v),mn=Math.min(...v),P=20;x.clearRect(0,0,c.width,c.height);
+ const pt=i=>[P+i*(c.width-2*P)/(v.length-1),c.height-P-(v[i]-mn)/(mx-mn||1)*(c.height-2*P)];
+ x.strokeStyle='#2e7d32';x.lineWidth=2;x.beginPath();v.forEach((_,i)=>{const[a,b]=pt(i);i?x.lineTo(a,b):x.moveTo(a,b)});x.stroke();
+ marks.forEach(([i,col,l])=>{if(i<0)return;const[a,b]=pt(i);x.fillStyle=col;x.beginPath();x.arc(a,b,6,0,7);x.fill();x.fillStyle=getComputedStyle(document.body).color;x.fillText(l,a+8,b-8)});}
+
+// ---- calculators ----
+const bands=['blue','green','red','nir','swir'],def={blue:.04,green:.08,red:.06,nir:.45,swir:.2};
+$('#bands').innerHTML=bands.map(b=>`<label>${b}<input id="b_${b}" type="number" step="0.01" value="${def[b]}" style="width:80px"></label>`).join('');
+async function calcIx(){const body={};bands.forEach(b=>body[b]=$('#b_'+b).value);const r=await api('/api/indices',body);
+ $('#ixres').innerHTML=Object.entries(r).map(([k,v])=>`<div>${k}<b>${v==null?'n/a':v.toFixed(3)}</b></div>`).join('');}
+function demo(){$('#pts').value=Array.from({length:24},(_,i)=>new Date(2024,3,1+i*10).toISOString().slice(0,10)+','+(.15+.7*Math.exp(-Math.pow((i-11)/5,2))+(Math.random()-.5)*.03).toFixed(3)).join('\n')}
+demo();
+async function calcSs(){const points=$('#pts').value.trim().split('\n').map(l=>{const[a,b]=l.split(',');return{date:a.trim(),ndvi:b}});
+ const r=await api('/api/season',{points});if(r.error){$('#ssres').innerHTML='<div>'+r.error+'</div>';return}
+ $('#ssres').innerHTML=Object.entries(r).map(([k,v])=>`<div>${k.replace('_',' ')}<b>${v}</b></div>`).join('');
+ line($('#cv'),points.map(p=>+p.ndvi),[['emergence','#1976d2'],['peak','#f9a825'],['harvest','#c62828']].map(([k,c])=>[points.findIndex(p=>p.date===r[k]),c,k]));}
+</script></body></html>
